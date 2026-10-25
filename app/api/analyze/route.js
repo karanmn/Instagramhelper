@@ -4,7 +4,7 @@ import { lintCaption, scoreHook, generateBeatSheet, humanizeAndDetect } from '..
 
 export async function POST(req) {
   try {
-    const { username } = await req.json();
+    const { username, customTopic } = await req.json();
     if (!username) {
       return NextResponse.json({ error: 'Username is required' }, { status: 400 });
     }
@@ -12,50 +12,204 @@ export async function POST(req) {
     const profile = await getProfileData(username);
     const bioText = (profile.bio || '').toLowerCase();
     const nameText = (profile.fullName || '').toLowerCase();
+    const combinedText = `${nameText} ${bioText} ${(profile.sampleCaptions || []).join(' ').toLowerCase()}`;
 
-    // Detect Niche & Location
-    let niche = 'Creator & Personal Brand';
-    if (/clean|home|wash|interior|repair/.test(bioText + nameText)) niche = 'Home & Cleaning Services';
-    else if (/fit|gym|health|diet|coach|yoga/.test(bioText + nameText)) niche = 'Fitness & Wellness Coaching';
-    else if (/tech|code|ai|dev|saas|app|software/.test(bioText + nameText)) niche = 'Tech, AI & SaaS';
-    else if (/shop|store|wear|fashion|jewel|clothing/.test(bioText + nameText)) niche = 'E-Commerce & D2C Brand';
-    else if (/agency|marketing|growth|ads|seo|brand/.test(bioText + nameText)) niche = 'Marketing & Growth Agency';
-    else if (/real estate|property|realtor|broker/.test(bioText + nameText)) niche = 'Real Estate & Property';
+    // Extract Location if mentioned in Bio
+    const cityMatch = (profile.bio || '').match(/\b(Jaipur|Delhi|Mumbai|Bangalore|Pune|Hyderabad|Ahmedabad|Surat|Kolkata|Indore|Lucknow|Chandigarh|Noida|Gurgaon|India)\b/i);
+    const city = cityMatch ? cityMatch[0] : 'your city';
+
+    // Extract Exact Keywords from Bio & Name
+    const rawKeywords = `${profile.fullName} ${profile.bio}`
+      .replace(/[^\w\s]/g, ' ')
+      .split(/\s+/)
+      .filter(w => w.length > 3 && !/^(https|http|from|with|your|this|that|have|more|call|link|below)$/i.test(w));
+    const topKeywords = [...new Set(rawKeywords)].slice(0, 6);
+
+    // Detect Niche & Specific Sub-services
+    let niche = profile.category || 'Creator & Personal Brand';
+    let serviceFocus = customTopic || 'your core service';
+    let targetAudience = 'customers';
+
+    if (/clean|wash|sofa|carpet|tank|housekeeping|pest|home/.test(combinedText)) {
+      niche = 'Home & Deep Cleaning Business';
+      serviceFocus = customTopic || 'Deep Cleaning / Sofa & Tank Cleaning';
+      targetAudience = `homeowners & offices in ${city}`;
+    } else if (/fit|gym|health|diet|coach|yoga|weight/.test(combinedText)) {
+      niche = 'Fitness & Transformation Coaching';
+      serviceFocus = customTopic || 'Fat Loss & Daily Diet System';
+      targetAudience = 'busy professionals';
+    } else if (/tech|code|ai|dev|saas|app|software|web/.test(combinedText)) {
+      niche = 'Tech, AI & Software Development';
+      serviceFocus = customTopic || 'AI Automation & App Building';
+      targetAudience = 'founders & businesses';
+    } else if (/shop|store|wear|fashion|jewel|clothing|boutique/.test(combinedText)) {
+      niche = 'Fashion & D2C Brand';
+      serviceFocus = customTopic || 'New Collection & Styling';
+      targetAudience = 'shoppers';
+    } else if (/agency|marketing|growth|ads|seo|brand|social/.test(combinedText)) {
+      niche = 'Marketing & Content Agency';
+      serviceFocus = customTopic || 'Lead Generation & Reels Growth';
+      targetAudience = 'business owners';
+    } else if (/real estate|property|realtor|broker|flat|villa/.test(combinedText)) {
+      niche = 'Real Estate & Property';
+      serviceFocus = customTopic || `Property & Home Buying in ${city}`;
+      targetAudience = `property buyers in ${city}`;
+    } else if (customTopic) {
+      serviceFocus = customTopic;
+    } else if (topKeywords.length > 0) {
+      serviceFocus = topKeywords.slice(0, 2).join(' ');
+    }
+
+    // =========================================================================
+    // NEW: 6 SHOOT-READY REEL IDEAS TAILORED TO USER'S PROFILE & REELS
+    // =========================================================================
+    const reelIdeas = [
+      {
+        id: 1,
+        title: 'The "Satisfying Before vs After" Proof Reel',
+        formula: '#7 The Reveal / Transformation',
+        language: 'Hinglish (Best for Local Reach)',
+        hook: `"Log sochte hain ye kharab ho chuka hai—par dekho 45 minutes me humne isko kaise naya bana diya!"`,
+        visual: 'First 2 secs: Sabse ganda/problematic part close-up me dikhao. Second 3-12: Fast timelapse of your process/machine. Last 5 secs: Side-by-side Before & After.',
+        script: [
+          `Log aksar sochte hain ki itni buri condition ke baad sirf naya kharidna hi option hai.`,
+          `Aaj hum aaye hain ${city} me ek client ke paas jahan ${serviceFocus} ka kaam tha.`,
+          `Step 1 me humne surface dust aur deep stains ko professional grade process se nikala.`,
+          `Step 2 me bina fabric ya material ko damage kiye sanitization kiya.`,
+          `Aur ye raha final result aapke samne! Agar aapko bhi ${city} me aisi service chahiye, toh comment me "PRICE" likho, main details DM karta hu.`
+        ].join('\n'),
+        caption: `45 minutes transformation in ${city}! 🔥\n\nBina naya kharide apne purane setup ko bilkul brand new banayein.\n\n👇 Comment "PRICE" aur hum aapko exact rate card DM kar denge!\n\n#${city.replace(/\s+/g, '').toLowerCase()} #${niche.split(' ')[0].toLowerCase()} #beforeandafter #smallbusinessindia`,
+        whyItWorks: 'Visual satisfaction stops the scroll in 1.5 seconds; local city mention converts views into real booking DMs.'
+      },
+      {
+        id: 2,
+        title: 'The "Costly DIY Mistake" Warning Reel',
+        formula: '#5 The Expensive Mistake',
+        language: 'Hinglish',
+        hook: `"Galti se bhi apne ghar par ${serviceFocus} ke liye ye sasta tarika mat use karna—warna ₹10,000 ka nuksan pakka hai!"`,
+        visual: 'Hold the wrong product/tool in hand with a big ❌ on screen, then switch to the professional equipment you use with a ✅.',
+        script: [
+          `Galti se bhi ${serviceFocus} ke waqt ye local chemical ya DIY hack mat lagana!`,
+          `Pichle hafte ${city} me ek client ne YouTube dekh kar ye try kiya aur pura surface permanent kharab ho gaya.`,
+          `Iska reason simple hai: galat pH aur pressure andar tak damage karta hai.`,
+          `Hum hamesha 3-stage safe process use karte hain jisse life 3 guna badh jati hai.`,
+          `Is reel ko save kar lo aur apne ghar walo ko bhej do!`
+        ].join('\n'),
+        caption: `Ye 1 galti aapko ₹10,000 ka nuksan kara sakti hai! ⚠️\n\nSave this reel before your next ${serviceFocus.toLowerCase()} session.\n\nDM "SAFE" for a free inspection/consultation in ${city}.\n\n#${city.replace(/\s+/g, '').toLowerCase()} #hometips #indianbusiness`,
+        whyItWorks: 'Fear of damaging expensive items triggers high "Sends per Reach" (WhatsApp/DM shares to family members).'
+      },
+      {
+        id: 3,
+        title: 'The "Price Transparency / Why Cheap is Expensive" Reel',
+        formula: '#1 Contrarian Flip',
+        language: 'Hinglish',
+        hook: `"Hum ₹300 wale saste kaam kyu nahi karte? 15 second me asliyat dekh lo."`,
+        visual: 'Talking to camera while your team works in the background. Point to on-screen text boxes showing Cheap vs Professional.',
+        script: [
+          `Roz mujhe DM aate hain ki "Bhaiya wo dusra banda toh ₹300 sasta kar raha hai."`,
+          `Dekho, saste kaam me 2 cheezein cut hoti hain: ek toh sasta acid/material use hota hai, aur dusra kaam aadha chhod diya jata hai.`,
+          `Hamare ${serviceFocus} process me professional machine, trained team aur 100% satisfaction guarantee hoti hai.`,
+          `Sasta kaam 10 din chalta hai, hamara kaam mahino tak dikhta hai.`,
+          `Quality kaam chahiye toh bio me diye number ya DM me "BOOK" likh kar bhejo.`
+        ].join('\n'),
+        caption: `Sasta vs Quality — farq साफ hai! 💯\n\nQuality service ke liye aaj hi DM karein "BOOK".\n\n#${profile.username.replace(/[^a-zA-Z0-9]/g, '')} #${city.replace(/\s+/g, '').toLowerCase()} #qualityservice`,
+        whyItWorks: 'Filters out bargain hunters and attracts high-paying clients who value quality.'
+      },
+      {
+        id: 4,
+        title: 'The "Day in the Life / Real Client Order" Vlog Reel',
+        formula: '#4 Someone Else\'s Result',
+        language: 'Hinglish',
+        hook: `"Aaj subah 8 baje hume ${city} me ek urgent order mila—chalo dikhata hu humne ise 3 ghante me kaise pura kiya."`,
+        visual: 'Fast-paced mini vlog: Loading gear -> Arriving at location -> Showing the problem -> Team in action -> Happy client reaction.',
+        script: [
+          `Aaj subah 8 baje hume ${city} se ek urgent call aaya.`,
+          `Unke ghar par kal function tha aur ${serviceFocus} ki halat kaafi kharab thi.`,
+          `Hamari team time par pahunchi aur sabse pehle inspection karke kaam start kiya.`,
+          `3 ghante ki mehnat ke baad jab client ne final result dekha toh unka reaction dekhne layak tha!`,
+          `Agar aapke ghar ya office me bhi urgent requirement hai, toh abhi DM karein.`
+        ].join('\n'),
+        caption: `Real work, real results in ${city}! 🚀\n\nAgli booking ke liye DM me "SLOT" likhein.\n\n#${city.replace(/\s+/g, '').toLowerCase()}diaries #clientwork #businessvlog`,
+        whyItWorks: 'Builds massive local trust because viewers see real humans, real equipment, and real houses.'
+      },
+      {
+        id: 5,
+        title: 'The "3 Signs You Need This Immediately" Educational Reel',
+        formula: '#2 The Specific Metric / Checklist',
+        language: 'English / Hinglish Mix',
+        hook: `"If you notice these 3 signs at your place, do NOT ignore them for another week."`,
+        visual: 'Show 3 quick visual clips of common hidden problems (dust buildup, stains, odor/wear) with 1, 2, 3 counters on screen.',
+        script: [
+          `If you spot these 3 signs, your setup is overdue for ${serviceFocus}.`,
+          `Sign 1: Surface looks fine, but deep layers have trapped dust or stains that trigger allergies.`,
+          `Sign 2: Normal home cleaning stops making any visible difference.`,
+          `Sign 3: It has been more than 6 months since your last professional service.`,
+          `Comment "CHECK" below and we will send you our quick pricing guide for ${city}.`
+        ].join('\n'),
+        caption: `When was the last time you got this checked? 👇\n\nComment "CHECK" for our rate card & open slots this week.\n\n#${city.replace(/\s+/g, '').toLowerCase()} #professionalservice #checklist`,
+        whyItWorks: 'Educates customers who did not even realize they needed your service today.'
+      },
+      {
+        id: 6,
+        title: 'The "Reply to Top Customer Question" FAQ Reel',
+        formula: '#3 Nobody Tells You',
+        language: 'Hinglish',
+        hook: `"Sabse zyada pucha jane wala sawal: Is process me kitna time lagta hai aur drying/completion kab tak hota hai?"`,
+        visual: 'Pin a customer comment sticker on top of the screen while demonstrating the exact speed of your equipment.',
+        script: [
+          `Comment me sabse zyada log puchte hain ki is poore kaam me kitna time lagta hai?`,
+          `Dekhiye, normal tarike se 2 din lag jate hain, par hamari heavy-duty extraction machine से 80% kaam turant dry aur ready ho jata hai.`,
+          `Sirf 2 se 3 ghante ke andar aap ise wapis use kar sakte hain.`,
+          `Apna slot book karne ke liye bio me link par click karein ya seedha DM bhejein!`
+        ].join('\n'),
+        caption: `Aapke sabse bade doubt ka jawab! ✅\n\nKoi aur sawal hai? Comment me puchein!\n\n#${city.replace(/\s+/g, '').toLowerCase()} #faq #customerfirst`,
+        whyItWorks: 'Removes the #1 friction point (convenience/time) stopping people from booking.'
+      }
+    ];
+
+    //Analyze existing Reels/Posts if fetched
+    const scannedReels = (profile.recentMedia || []).map((item) => {
+      const hScore = scoreHook(item.hookLine || item.caption || 'No caption');
+      return {
+        ...item,
+        hookAnalysis: hScore
+      };
+    });
 
     // 1. /ig-profile — 12-Part Rubric Score out of 100
     const hasSeoInName = nameText.split(/\s+/).length >= 2 && !nameText.includes(profile.username.toLowerCase());
-    const hasCta = /link|dm|free|below|click|book|call|whatsapp|👇|📩/i.test(profile.bio || '');
-    const hasProof = /\d+|\+|years|clients|trusted|certified|award/i.test(profile.bio || '');
+    const hasCta = /link|dm|free|below|click|book|call|whatsapp|👇|📩|\d{10}/i.test(profile.bio || '');
+    const hasProof = /\d+|\+|years|clients|trusted|certified|award|best|no\.?\s*1/i.test(profile.bio || '');
     const bioLines = (profile.bio || '').split('\n').filter(Boolean);
 
     const rubricItems = [
-      { id: 1, label: 'Searchable Name Field (Name + Niche Keyword)', score: hasSeoInName ? 10 : 5, max: 10, fix: `${profile.fullName} | ${niche.split('&')[0].trim()} Specialist` },
-      { id: 2, label: 'Line 1 Value Proposition (Who you help + outcome)', score: bioLines.length >= 1 ? 8 : 3, max: 10, fix: `Helping you get top-tier ${niche.toLowerCase()} results without guesswork.` },
-      { id: 3, label: 'Concrete Social Proof / Numbers in Bio', score: hasProof ? 10 : 4, max: 10, fix: 'Add 1 hard metric (e.g., "500+ clients served" or "7+ yrs experience").' },
-      { id: 4, label: 'Single Clear Call-To-Action (CTA)', score: hasCta ? 10 : 2, max: 10, fix: '👇 DM "START" or tap below for a free quote/audit' },
-      { id: 5, label: 'Clean Line-Break Formatting (3-4 scannable lines)', score: bioLines.length >= 2 && bioLines.length <= 4 ? 8 : 5, max: 8, fix: 'Stack bio into 3 short lines: 1. Outcome, 2. Proof/Location, 3. CTA.' },
-      { id: 6, label: 'Zero Hashtag/Tag Leaks in Bio', score: /#\w+/.test(profile.bio || '') ? 3 : 8, max: 8, fix: 'Remove generic hashtags from bio (clicking them takes visitors off your page).' },
-      { id: 7, label: 'Handle Readability (No random numbers/underscores)', score: /\d{3,}/.test(profile.username) ? 4 : 8, max: 8, fix: 'Keep handle clean and phonetic.' },
-      { id: 8, label: 'Follower-to-Following Authority Ratio', score: profile.followers > profile.following ? 10 : 6, max: 10, fix: 'Keep following list curated under 500 for creator authority.' },
-      { id: 9, label: '3 Pinned Posts Strategy (Proof, Story, Viral)', score: 7, max: 8, fix: 'Pin: 1) Who you are + proof, 2) Case study/transformation, 3) Keyword lead magnet.' },
-      { id: 10, label: 'Highlight Covers ( Max 4: Start Here, Proof, FAQ, Offer)', score: 7, max: 8, fix: 'Purge old event highlights; keep only "Results", "Process", "Services", "FAQ".' },
+      { id: 1, label: 'Searchable Name Field (Name + Niche Keyword)', score: hasSeoInName ? 10 : 5, max: 10, fix: `${profile.fullName} | ${niche.split('&')[0].trim()}` },
+      { id: 2, label: 'Line 1 Value Proposition (Who you help + outcome)', score: bioLines.length >= 1 ? 8 : 3, max: 10, fix: `Professional ${serviceFocus} in ${city}` },
+      { id: 3, label: 'Concrete Social Proof / Numbers in Bio', score: hasProof ? 10 : 4, max: 10, fix: 'Add 1 hard metric (e.g., "500+ Happy Clients in Jaipur").' },
+      { id: 4, label: 'Single Clear Call-To-Action (CTA)', score: hasCta ? 10 : 2, max: 10, fix: '👇 DM "PRICE" or Call/WhatsApp below for instant booking' },
+      { id: 5, label: 'Clean Line-Break Formatting (3-4 scannable lines)', score: bioLines.length >= 2 && bioLines.length <= 4 ? 8 : 5, max: 8, fix: 'Stack bio into 3 short lines: 1. Service, 2. Location/Proof, 3. CTA.' },
+      { id: 6, label: 'Zero Hashtag/Tag Leaks in Bio', score: /#\w+/.test(profile.bio || '') ? 3 : 8, max: 8, fix: 'Remove generic hashtags from bio.' },
+      { id: 7, label: 'Handle Readability', score: /\d{3,}/.test(profile.username) ? 4 : 8, max: 8, fix: 'Keep handle clean and memorable.' },
+      { id: 8, label: 'Follower-to-Following Authority Ratio', score: profile.followers > profile.following ? 10 : 6, max: 10, fix: 'Strong authority ratio.' },
+      { id: 9, label: '3 Pinned Posts Strategy (Proof, Process, Offer)', score: 7, max: 8, fix: 'Pin: 1) Best Before/After Reel, 2) Price/Process FAQ, 3) Client Reviews.' },
+      { id: 10, label: 'Highlight Covers (Results, Rate Card, Reviews, FAQ)', score: 7, max: 8, fix: 'Keep 4 clean Highlights: Reviews, Before/After, Services, Contact.' },
       { id: 11, label: 'Voice Consistency & Zero AI Slop', score: 5, max: 5, fix: 'Passed clean voice rubric.' },
-      { id: 12, label: 'DM Keyword Automation Ready', score: hasCta ? 5 : 2, max: 5, fix: 'Use a 1-word comment/DM trigger instead of making users hunt through link trees.' }
+      { id: 12, label: 'DM Keyword Automation Ready', score: hasCta ? 5 : 2, max: 5, fix: 'Tell viewers to comment "PRICE" on Reels for auto-DM.' }
     ];
     const totalProfileScore = rubricItems.reduce((acc, item) => acc + item.score, 0);
 
     const optimizedBio = [
-      `${profile.fullName} | ${niche}`,
-      `⚡ Premium ${niche.toLowerCase()} built for fast, reliable results`,
-      `🏆 Trusted by 250+ clients • Proven process`,
-      `👇 DM "PLAN" or tap below to book today`
+      `${profile.fullName}`,
+      `✨ Expert ${serviceFocus} in ${city}`,
+      `🏆 500+ Happy Clients • 100% Safe & Professional Equipment`,
+      `👇 DM "PRICE" or WhatsApp below to book your slot`
     ].join('\n');
 
-    // 2. /ig-reel — 3 Scored Hooks from 26 Formulas + Timed Beat Sheet
+    // 2. /ig-reel — 3 Scored Hooks + Timed Beat Sheet
     const rawHooks = [
-      `Nobody tells you that 80% of ${niche.toLowerCase()} mistakes happen in the first 5 minutes.`,
-      `I lost ₹45,000 before I learned this one ${niche.toLowerCase()} rule.`,
-      `Stop paying for overpriced ${niche.toLowerCase()} packages. Do this 3-step check instead.`
+      reelIdeas[0].hook.replace(/"/g, ''),
+      reelIdeas[1].hook.replace(/"/g, ''),
+      `Nobody tells you that 80% of ${serviceFocus.toLowerCase()} damage happens because of 1 cheap chemical.`
     ];
     const scoredHooks = rawHooks.map(h => ({
       hook: h,
@@ -63,137 +217,130 @@ export async function POST(req) {
       ...scoreHook(h)
     }));
 
-    const defaultReelScript = [
-      rawHooks[1],
-      `Here is the exact 3-point checklist we now use on every single project.`,
-      `First, verify the baseline quality before you ever commit a rupee.`,
-      `Second, lock in the delivery timeline in writing, not just a verbal promise.`,
-      `Third, test one small batch first before scaling the full order.`,
-      `That one 3-point rule saved me ₹45,000. Comment "CHECK" and I will DM you the checklist.`
-    ].join('\n');
-
+    const defaultReelScript = reelIdeas[0].script;
     const beatSheet = generateBeatSheet(defaultReelScript, 25);
 
-    // 3. /ig-viral — Swipe File & Outlier Ranking Engine
+    // 3. /ig-viral — Swipe File
     const medianViews = Math.max(1200, Math.round((profile.followers || 5000) * 0.18));
     const swipeFile = [
       {
         outlierMultiple: '34.5x',
         views: (medianViews * 34.5).toLocaleString(),
         accountMedian: medianViews.toLocaleString(),
-        formula: '#5 The Expensive Mistake',
-        hookScore: 89.2,
-        hook: `"I wasted 6 months doing ${niche.toLowerCase()} the hard way until I changed this 1 setting."`,
-        whyItWorked: 'Opens with concrete time loss + singular fix. High save-to-view ratio.'
+        formula: '#7 The Reveal / Transformation',
+        hookScore: 91.0,
+        hook: reelIdeas[0].hook,
+        whyItWorked: 'Extreme Before/After visual in first 2 seconds + local city callout.'
       },
       {
         outlierMultiple: '18.2x',
         views: (medianViews * 18.2).toLocaleString(),
         accountMedian: medianViews.toLocaleString(),
-        formula: '#6 The Steal',
-        hookScore: 85.6,
-        hook: `"Steal our exact 4-step ${niche.toLowerCase()} SOP that booked 22 clients this month."`,
-        whyItWorked: 'Immediate utility ("Steal our SOP") triggers bookmarks before second 4.'
+        formula: '#5 The Expensive Mistake',
+        hookScore: 86.4,
+        hook: reelIdeas[1].hook,
+        whyItWorked: 'Costly mistake warning triggers family WhatsApp shares.'
       },
       {
         outlierMultiple: '9.4x',
         views: (medianViews * 9.4).toLocaleString(),
         accountMedian: medianViews.toLocaleString(),
         formula: '#1 Contrarian Flip',
-        hookScore: 81.4,
-        hook: `"Stop using 2023 tactics for ${niche.toLowerCase()}. Here is what works right now."`,
-        whyItWorked: 'Calls out outdated habit and creates an immediate curiosity gap.'
+        hookScore: 82.0,
+        hook: reelIdeas[2].hook,
+        whyItWorked: 'Addresses price objections head-on and builds authority.'
       }
     ];
 
-    // 4. /ig-caption — Linted Caption & 125-Char Feed Box
-    const samplePostCaption = `${rawHooks[1]} Most people skip the inspection step until it's too late.\n\nHere is how we prevent it every time:\n1. Audit the scope upfront\n2. Set clear milestones\n3. Verify final output\n\nComment "CHECK" below and I'll send you the exact template.\n\n#${niche.replace(/[^a-zA-Z]/g, '').toLowerCase()} #growthstrategy #businessindia`;
-    const captionLint = lintCaption(samplePostCaption, `${niche.split(' ')[0].toLowerCase()}, checklist`);
+    // 4. /ig-caption
+    const samplePostCaption = reelIdeas[0].caption;
+    const captionLint = lintCaption(samplePostCaption, `${city.toLowerCase()}, ${serviceFocus.split(' ')[0].toLowerCase()}`);
 
-    // 5. /ig-carousel — 8-Slide 1080x1350 Blueprint
+    // 5. /ig-carousel
     const carouselSlides = [
-      { slide: 1, role: 'Cover (Earns the Swipe)', headline: `5 ${niche} Mistakes Costing You Time & Money`, sub: 'Swipe before your next booking -> (1080x1350)' },
-      { slide: 2, role: 'The Hook Context', headline: 'Most people only notice #3 when it is already too late.', sub: 'Here is how to spot all 5 in under 2 minutes.' },
-      { slide: 3, role: 'Mistake #1', headline: 'Skipping the Baseline Audit', sub: 'Starting without a clear checklist guarantees rework.' },
-      { slide: 4, role: 'Mistake #2', headline: 'Choosing Lowest Price Over Process', sub: 'Cheap upfront usually costs 3x more to fix in week two.' },
-      { slide: 5, role: 'Mistake #3 (The Big One)', headline: 'Zero Written Scope or Guarantee', sub: 'Always lock deliverables in a simple 3-line summary.' },
-      { slide: 6, role: 'The Fix', headline: 'The 3-Step Quality Framework', sub: 'Inspect -> Document -> Execute with verified tools.' },
-      { slide: 7, role: 'Real Proof', headline: 'What Happens When You Fix This', sub: 'Faster turnaround, zero stress, and predictable results.' },
-      { slide: 8, role: 'Single CTA Slide', headline: 'Want our free 1-page checklist?', sub: 'Comment "GUIDE" below and I will DM it to you.' }
+      { slide: 1, role: 'Cover (Earns the Swipe)', headline: `5 ${serviceFocus} Mistakes Costing You Money`, sub: `Swipe before booking in ${city} -> (1080x1350)` },
+      { slide: 2, role: 'The Hook Context', headline: 'Most people only notice #3 when permanent damage is done.', sub: 'Here is how to prevent all 5.' },
+      { slide: 3, role: 'Mistake #1', headline: 'Using Harsh Local Chemicals', sub: 'Cheap acids ruin fabric/surface life within weeks.' },
+      { slide: 4, role: 'Mistake #2', headline: 'Choosing Lowest Price Over Equipment', sub: 'Without industrial vacuum/extraction, dirt stays trapped inside.' },
+      { slide: 5, role: 'Mistake #3 (The Big One)', headline: 'Waiting Too Long Between Sessions', sub: 'Deep stains set permanently after 6 months.' },
+      { slide: 6, role: 'The Fix', headline: 'Our 3-Step Professional Process', sub: 'Inspect -> Deep Extraction -> Safe Sanitization.' },
+      { slide: 7, role: 'Real Proof', headline: `Trusted Across ${city}`, sub: 'Fast drying, zero odor, and spotless results.' },
+      { slide: 8, role: 'Single CTA Slide', headline: 'Want our free rate card?', sub: 'Comment "PRICE" below and we will DM it to you!' }
     ];
 
-    // 6. /ig-story — 5-Frame Daily Story Sequence & Sticker Funnel
+    // 6. /ig-story
     const storySequence = [
-      { frame: 1, type: 'Pattern Interrupt Photo/B-Roll', sticker: 'Poll Sticker ("Yes / Show me")', copy: `Behind the scenes of today's ${niche.toLowerCase()} project. Spot what is wrong here?` },
-      { frame: 2, type: 'Value / Breakdown', sticker: 'None (Keep clean for reading)', copy: 'Here is the exact before vs. after difference when done right.' },
-      { frame: 3, type: 'Micro-Commitment', sticker: 'Emoji Slider Sticker', copy: 'How much would this upgrade help your current setup?' },
-      { frame: 4, type: 'Social Proof / Result', sticker: 'Question Box ("Ask anything")', copy: 'Client feedback from this morning. Have a specific question on cost?' },
-      { frame: 5, type: 'DM Funnel Trigger', sticker: 'Keyword Reply Prompt', copy: 'Reply "QUOTE" to this story and I will send you our pricing & availability.' }
+      { frame: 1, type: 'Before Photo / Pattern Interrupt', sticker: 'Poll Sticker ("Wait for result / Show me")', copy: `Today's ${serviceFocus} site in ${city}. Guess how long this will take?` },
+      { frame: 2, type: 'Process Video Clip', sticker: 'None (Keep clean)', copy: 'Extracting months of hidden dirt with our industrial machine.' },
+      { frame: 3, type: 'After Transformation', sticker: 'Emoji Slider Sticker (🔥)', copy: 'Rate this Before vs After transformation!' },
+      { frame: 4, type: 'Client Review / Proof', sticker: 'Question Box ("Ask price/details")', copy: 'Another happy client today! Have a question about your home/office?' },
+      { frame: 5, type: 'Booking CTA', sticker: 'Keyword Reply Prompt', copy: `We have 2 open slots in ${city} this week. Reply "BOOK" to claim one.` }
     ];
 
-    // 7. /ig-plan — 7-Day Content Calendar & 10 Engagement Accounts
+    // 7. /ig-plan
     const weeklyPlan = [
-      { day: 'Monday', format: 'Reel (Contrarian Hook)', topic: `Stop doing X in ${niche} — do Y instead`, goal: 'Reach & Non-follower discovery' },
-      { day: 'Tuesday', format: 'Carousel (8 Slides)', topic: 'Step-by-step educational checklist', goal: 'Saves & Bookmarks' },
-      { day: 'Wednesday', format: 'Stories Only (5 Frames)', topic: 'Behind-the-scenes + Poll sticker lead magnet', goal: 'Warm DM conversations' },
-      { day: 'Thursday', format: 'Reel (Case Study / Proof)', topic: 'Before & After client transformation breakdown', goal: 'High-intent leads' },
-      { day: 'Friday', format: 'Carousel (Myth vs Fact)', topic: '3 common industry pricing myths debunked', goal: 'Shares / Sends per reach' },
-      { day: 'Saturday', format: 'Reel (The Steal / Template)', topic: 'Steal our 3-minute daily routine/maintenance hack', goal: 'Keyword comments' },
-      { day: 'Sunday', format: 'Story Q&A + Weekly Recap', topic: 'Answering top 3 audience questions + next week booking slots', goal: 'Direct conversions' }
+      { day: 'Monday', format: 'Reel (Before vs After)', topic: reelIdeas[0].title, goal: 'Local Reach & New Followers' },
+      { day: 'Tuesday', format: 'Carousel (8 Slides)', topic: `5 ${serviceFocus} Mistakes to Avoid`, goal: 'Saves & Authority' },
+      { day: 'Wednesday', format: 'Stories (5 Frames)', topic: 'Live site work in ' + city + ' + Poll sticker', goal: 'Direct Booking DMs' },
+      { day: 'Thursday', format: 'Reel (Mistake Warning)', topic: reelIdeas[1].title, goal: 'Shares on WhatsApp/DM' },
+      { day: 'Friday', format: 'Reel (Price vs Quality)', topic: reelIdeas[2].title, goal: 'High-ticket Lead Filtering' },
+      { day: 'Saturday', format: 'Reel (Mini Vlog)', topic: reelIdeas[3].title, goal: 'Brand Trust & Comments' },
+      { day: 'Sunday', format: 'Story Rate Card + Q&A', topic: 'Next week slot booking announcement', goal: 'Direct Conversions' }
     ];
 
-    // 8. /ig-human — Run detector on current bio/sample draft
-    const sampleAiDraft = `In today's fast-paced world, stop scrolling! — We don't just offer ${niche.toLowerCase()}, we unlock a seamless game changer for your life. Follow for more!`;
+    // 8. /ig-human
+    const sampleAiDraft = `In today's fast-paced world, stop scrolling! — We don't just offer ${serviceFocus.toLowerCase()}, we unlock a seamless game changer for your home in ${city}. Follow for more!`;
     const humanizerDemo = humanizeAndDetect(sampleAiDraft);
 
-    // 9. /ig-comment — 9 Comment Types (Never "🔥🔥🔥")
+    // 9. /ig-comment
     const commentTemplates = [
-      { type: '1. The Specific Timestamp Callout', text: '"The point at 0:14 about fixing the bottleneck first is spot on—most people skip straight to scaling."' },
-      { type: '2. The Counter-Example / Nuance', text: '"Tested this exact workflow last month. Worked great, with one tweak: we halved the first step for faster onboarding."' },
-      { type: '3. The Tactical Question', text: '"When you run step 2, do you batch it weekly or trigger it per client?"' },
-      { type: '4. The Metric Co-Sign', text: '"Can confirm—switching to this cut our turnaround time by nearly 40% this quarter."' },
-      { type: '5. The TL;DR Summary (Pins Magnet)', text: '"Quick summary for anyone saving this: 1) Audit baseline, 2) Cut friction, 3) Automate follow-up."' }
+      { type: '1. Local Community Value Comment', text: `"Spot on! We see this exact issue across ${city} properties every week—catching it early saves so much rework."` },
+      { type: '2. The Tactical Addition', text: `"Great breakdown. One tip that helps our clients: always test a small hidden corner first before doing the full surface."` },
+      { type: '3. The Co-Sign with Proof', text: `"100% agreed. Switching to high-extraction equipment cut our drying time in half."` }
     ];
 
-    // 10. /ig-reply — 6-Bucket Comment Thread Triage
+    // 10. /ig-reply
     const replyTriage = [
-      { bucket: '1. KEYWORD (Highest Priority)', sample: '"CHECK"', reply: '"Just sent the checklist straight to your DMs! Check your message requests if you don\'t see it."' },
-      { bucket: '2. LEAD / BUYING INTENT', sample: '"How much do you charge for this in Jaipur?"', reply: '"Depends on the exact size/scope! Just DM\'d you our quick rate card so we can get you an exact quote."' },
-      { bucket: '3. SUBSTANCE / INSIGHT', sample: '"We tried this and step 2 was the hardest part."', reply: '"100%—step 2 takes the most setup upfront, but once it is locked in, step 3 runs itself. How did you solve it?"' },
-      { bucket: '4. QUESTION', sample: '"Does this work for beginners too?"', reply: '"Yes, especially for beginners because you don\'t have to unlearn old habits first."' },
-      { bucket: '5. SUPPORT', sample: '"Great post!"', reply: '"Appreciate you reading through! Which slide stood out most?"' },
-      { bucket: '6. NOISE / SPAM', sample: '"DM this to @promo_page"', reply: '[Action: Hide or ignore — never feed negative/spam threads algorithm weight]' }
+      { bucket: '1. KEYWORD ("PRICE" / "BOOK")', sample: '"Pp" / "Price?"', reply: `"Abhi aapke DM me hamara complete rate card aur ${city} booking details bhej di hain! Please message request check karein 🙏"` },
+      { bucket: '2. LEAD / LOCATION INQUIRY', sample: `"Do you provide service in Vaishali Nagar / Mansarovar?"`, reply: `"Yes! Hum poore ${city} me doorstep service dete hain. Aapko DM me contact number bheja hai!"` },
+      { bucket: '3. QUESTION ON TIME/PROCESS', sample: '"Kitna time lagta hai?"', reply: `"Sirf 2 se 3 ghante lagte hain aur machine drying se jaldi ready ho jata hai!"` },
+      { bucket: '4. APPRECIATION', sample: '"Great work bro 🔥"', reply: `"Thank you so much bhai! 🙏"` }
     ];
 
-    // 11. /ig-dm — Keyword Delivery, First Message, Collab Pitch & 2 Follow-Ups
+    // 11. /ig-dm
     const dmTemplates = {
-      keywordDelivery: `Hey! Here is the ${niche} Checklist you commented for: [Link]. Quick question—are you planning this for yourself or a client project right now?`,
-      firstTouch: `Hey {{Name}}, saw you checked out our recent breakdown on ${niche.toLowerCase()}. Curious—what is the #1 bottleneck you are dealing with on that right now?`,
-      collabPitch: `Hey {{Name}}, love how practical your recent reels are—zero fluff. Our audiences overlap heavily without competing. Open to a 45-sec Collab Reel next week where we break down 1 tip each?`,
-      followUp1: `Hey {{Name}}, bumping this in case it got buried! Still want me to hold a custom quote/plan for you this week?`,
-      followUp2: `Last check-in from me so I don't clutter your inbox—if now isn't the right time, no stress at all. Just reply "LATER" and we can revisit whenever you're ready.`
+      keywordDelivery: `Namaste! 🙏 Aapne hamari Reel par comment kiya tha. Ye rahi hamari ${serviceFocus} (${city}) ki Rate List & Details.\n\nBatayein aapko kis cheez ki cleaning/service karwani hai? Aap photo bhej kar exact quote le sakte hain!`,
+      firstTouch: `Hey {{Name}}! Thanks for following @${profile.username}. Agar aapko ${city} me kabhi bhi ${serviceFocus.toLowerCase()} ki zarurat ho, toh yahan message kar sakte hain—followers ke liye 10% flat discount rehta hai!`,
+      collabPitch: `Hey {{Name}}, love your content in ${city}! Hum local homes/businesses ke liye ${serviceFocus.toLowerCase()} karte hain. Kya hum aapke space par ek free transformation Reel collab shoot kar sakte hain?`,
+      followUp1: `Hey {{Name}}, bas check kar raha tha—kya is weekend ke liye aapka ${serviceFocus.toLowerCase()} slot confirm kar dein? Hamare paas 2 slots bache hain.`,
+      followUp2: `No rush at all! Jab bhi aapko next month service chahiye ho, bas yahan "BOOK" reply kar dijiyega. Have a great week! 🙏`
     };
 
-    // 12. /ig-repurpose — 1 Pillar Idea into 5 Standalone Assets
+    // 12. /ig-repurpose
     const repurposeMatrix = [
-      { asset: 'Reel #1 (Contrarian)', angle: 'Why the standard industry advice fails 80% of people', format: 'Talking head + B-roll (25s)' },
-      { asset: 'Reel #2 (Case Study)', angle: 'How 1 client solved the problem in 7 days', format: 'Green screen breakdown (30s)' },
-      { asset: 'Carousel #1 (Step-by-Step)', angle: 'The complete 6-step blueprint to do it yourself', format: '8 Slides (1080x1350)' },
-      { asset: 'Story Sequence', angle: 'Quick 3-poll quiz testing if the audience makes this mistake', format: '4 Story frames + DM trigger' },
-      { asset: 'Reel #3 (FAQ / Objection)', angle: 'Answering the #1 cost/time objection from the comments', format: 'Reply-to-comment sticker Reel (20s)' }
+      { asset: 'Reel #1 (Time-lapse)', angle: '30-sec satisfying cleaning/work timelapse with voiceover', format: '9:16 Reel (25s)' },
+      { asset: 'Reel #2 (Before/After)', angle: '5-sec shock hook showing dirty vs spotless result', format: 'Trending audio Reel (12s)' },
+      { asset: 'Carousel (Process)', angle: 'Step-by-step photos of how the job was completed', format: '6 Slides (1080x1350)' },
+      { asset: 'Story Poll Funnel', angle: 'Guess the cost/time of this project + DM trigger', format: '4 Story frames' },
+      { asset: 'Customer Review Reel', angle: '15-sec clip of client reaction at the end of the job', format: 'Trust-building Reel' }
     ];
 
-    // 13. /ig-audit — Post-Mortem Diagnostic Framework
+    // 13. /ig-audit
     const auditDiagnostics = [
-      { metric: 'High Views + Low Follows', diagnosis: 'Hook went too broad/viral outside your core niche. Tighten specificity in line 1.' },
-      { metric: 'High Saves + Low Reach', diagnosis: 'Great educational depth, but the first 3 seconds lacked a strong visual/verbal hook.' },
-      { metric: 'High Sends-Per-Reach (Shares)', diagnosis: 'Your strongest growth signal. Double down on this exact format & hook formula next week.' },
-      { metric: 'Drop-Off Before 3 Seconds', diagnosis: 'Cut the 1.5s breath/greeting at the start and put a 5-word text hook center-screen.' }
+      { metric: 'High Views + Low Booking DMs', diagnosis: `Mention "${city}" in the first 3 seconds and on-screen text so the algorithm shows your Reel to local residents, not random cities.` },
+      { metric: 'People Asking "Price?" in Comments', diagnosis: 'Reply immediately in comments AND send a DM within 5 minutes with a clear WhatsApp number.' },
+      { metric: 'Drop-Off Before 3 Seconds', diagnosis: 'Start the video right on the dirtiest/most dramatic visual—never start with a slow logo intro.' },
+      { metric: 'Best Performing Format', diagnosis: 'Satisfying ASMR / Fast timelapse with Hinglish voiceover explaining the problem & fix.' }
     ];
 
     return NextResponse.json({
       profile,
       niche,
+      city,
+      serviceFocus,
+      topKeywords,
+      scannedReels,
+      reelIdeas,
       skills: {
         profileAudit: { score: totalProfileScore, hasCta, optimizedBio, rubric: rubricItems },
         reelEngine: { hooks: scoredHooks, defaultScript: defaultReelScript, beatSheet },
