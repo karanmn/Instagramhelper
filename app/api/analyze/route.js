@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
-import { getProfileData } from '@/lib/instagram';
-import { lintCaption, scoreHook, humanizeText } from '@/lib/heuristics';
+import { getProfileData } from '../../../lib/instagram';
+import { lintCaption, scoreHook, humanizeText } from '../../../lib/heuristics';
 
 export async function POST(req) {
   try {
