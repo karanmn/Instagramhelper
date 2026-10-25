@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { getProfileData } from '../../../lib/instagram';
 import { lintCaption, scoreHook, generateBeatSheet, humanizeAndDetect } from '../../../lib/heuristics';
 
-// Universal Multi-LLM Router
+// Universal Multi-LLM Router (Including OpenRouter & Gemini)
 async function callSelectedLLM(provider, systemPrompt, userPrompt, jsonMode = false) {
   let endpoint = '';
   let headers = { 'Content-Type': 'application/json' };
@@ -17,9 +17,25 @@ async function callSelectedLLM(provider, systemPrompt, userPrompt, jsonMode = fa
       contents: [{ parts: [{ text: userPrompt }] }],
       generationConfig: jsonMode ? { responseMimeType: 'application/json' } : {}
     };
+  } else if (provider === 'openrouter') {
+    const key = process.env.OPENROUTER_API_KEY;
+    if (!key) throw new Error("OPENROUTER_API_KEY is missing in Vercel settings.");
+    endpoint = 'https://openrouter.ai/api/v1/chat/completions';
+    headers['Authorization'] = `Bearer ${key}`;
+    headers['HTTP-Referer'] = 'https://instagram-agent-app.vercel.app';
+    headers['X-Title'] = 'Instagram Agent App';
+    body = {
+      model: 'anthropic/claude-3.5-sonnet', // OpenRouter par best creative writing ke liye
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      temperature: 0.7,
+      ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
+    };
   } else if (provider === 'groq') {
     const key = process.env.GROQ_API_KEY;
-    if (!key) throw new Error("GROQ_API_KEY is missing in Vercel settings.");
+    if (!key) throw new Error("GROQ_API_KEY is missing.");
     endpoint = 'https://api.groq.com/openai/v1/chat/completions';
     headers['Authorization'] = `Bearer ${key}`;
     body = {
@@ -31,21 +47,7 @@ async function callSelectedLLM(provider, systemPrompt, userPrompt, jsonMode = fa
       temperature: 0.7,
       ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
     };
-  } else if (provider === 'mistral') {
-    const key = process.env.MISTRAL_API_KEY;
-    if (!key) throw new Error("MISTRAL_API_KEY is missing in Vercel settings.");
-    endpoint = 'https://api.mistral.ai/v1/chat/completions';
-    headers['Authorization'] = `Bearer ${key}`;
-    body = {
-      model: 'mistral-small-latest',
-      messages: [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      temperature: 0.7
-    };
   } else {
-    // Default fallback to Free Pollinations / OpenRouter
     endpoint = 'https://text.pollinations.ai/openai';
     body = {
       model: 'openai',
@@ -53,8 +55,7 @@ async function callSelectedLLM(provider, systemPrompt, userPrompt, jsonMode = fa
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
       ],
-      temperature: 0.7,
-      ...(jsonMode ? { response_format: { type: 'json_object' } } : {})
+      temperature: 0.7
     };
   }
 
@@ -71,7 +72,6 @@ async function callSelectedLLM(provider, systemPrompt, userPrompt, jsonMode = fa
   }
 
   const data = await res.json();
-
   if (provider === 'gemini') {
     return data.candidates?.[0]?.content?.parts?.[0]?.text || '';
   } else {
