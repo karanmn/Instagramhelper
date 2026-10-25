@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import {
   Sparkles, AlertTriangle, ShieldCheck, Instagram, ArrowRight,
-  Copy, Wand2, Film, Flame, FileText, Layers, Terminal, Send, RefreshCw, TrendingUp, Cpu
+  Copy, Film, Flame, FileText, Layers, Terminal, Send, RefreshCw, TrendingUp, Cpu
 } from 'lucide-react';
 import { scoreHook, generateBeatSheet, lintCaption, humanizeAndDetect } from '../lib/heuristics';
 
@@ -10,14 +10,14 @@ const SKILL_COMMANDS = [
   { cmd: '/ig-reel', label: '/ig-reel (3 Hooks + Script + Beat Sheet)', placeholder: 'e.g. 5L Handwash ₹190 wholesale reel script...' },
   { cmd: '/ig-viral', label: '/ig-viral (Outlier Spin-off Ideas)', placeholder: 'e.g. Analyze my top outlier reel and write Part 2...' },
   { cmd: '/ig-carousel', label: '/ig-carousel (8-Slide 1080x1350 Copy)', placeholder: 'e.g. Chote business ka maal poore India me kaise bhejein...' },
-  { cmd: '/ig-caption', label: '/ig-caption (125-Char Hook + SEO Caption)', placeholder: 'e.g. Write a wholesale catalog caption for Phenyl & Dishwash...' },
+  { cmd: '/ig-caption', label: '/ig-caption (125-Char Hook + SEO Caption)', placeholder: 'e.g. Write wholesale catalog caption for Phenyl & Dishwash...' },
   { cmd: '/ig-dm', label: '/ig-dm (Keyword Auto-DM & Follow-ups)', placeholder: 'e.g. Rate card DM script for price inquiries...' }
 ];
 
 export default function Home() {
   const [username, setUsername] = useState('');
   const [scanFocus, setScanFocus] = useState('');
-  const [selectedProvider, setSelectedProvider] = useState('gemini');
+  const [selectedProvider, setSelectedProvider] = useState('openrouter'); // Default to OpenRouter
   const [loading, setLoading] = useState(false);
   const [data, setData] = useState(null);
   const [errorMsg, setErrorMsg] = useState('');
@@ -104,7 +104,7 @@ export default function Home() {
           <h1 className="text-xl font-bold bg-gradient-to-r from-pink-500 to-purple-400 bg-clip-text text-transparent">
             Instagram AI Agent Studio
           </h1>
-          <p className="text-xs text-gray-400">Multi-LLM Powered Creator Engine</p>
+          <p className="text-xs text-gray-400">Multi-LLM Creator Engine (Claude via OpenRouter / Gemini)</p>
         </div>
 
         {/* LLM Selector Dropdown */}
@@ -116,10 +116,9 @@ export default function Home() {
             onChange={(e) => setSelectedProvider(e.target.value)}
             className="px-3 py-1.5 bg-gray-950 border border-gray-700 rounded-xl text-xs font-bold text-pink-400 focus:outline-none"
           >
+            <option value="openrouter">OpenRouter (Claude 3.5 Sonnet)</option>
             <option value="gemini">Google Gemini 2.5 Flash</option>
-            <option value="groq">Groq (Llama 3.3 Lightning)</option>
-            <option value="mistral">Mistral AI (Small Latest)</option>
-            <option value="pollinations">Free Keyless LLM</option>
+            <option value="groq">Groq (Llama 3.3)</option>
           </select>
         </div>
       </div>
@@ -139,7 +138,7 @@ export default function Home() {
           </div>
           <input
             type="text"
-            placeholder="Focus / Niche (e.g. Phenyl & Dishwash wholesale)"
+            placeholder="Focus (e.g. Wholesale Phenyl & Handwash)"
             value={scanFocus}
             onChange={(e) => setScanFocus(e.target.value)}
             className="flex-1 px-4 py-2.5 bg-gray-950 border border-gray-800 rounded-xl text-white placeholder-gray-500 text-sm focus:outline-none focus:border-pink-500"
