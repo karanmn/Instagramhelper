@@ -25,7 +25,7 @@ async function callSelectedLLM(provider, systemPrompt, userPrompt, jsonMode = fa
     headers['HTTP-Referer'] = 'https://instagram-agent-app.vercel.app';
     headers['X-Title'] = 'Instagram Agent App';
     body = {
-      model: 'anthropic/claude-3.5-sonnet', // OpenRouter par best creative writing ke liye
+      model: 'anthropic/claude-3.5-sonnet', // <--- Yahan model change karna hai
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
